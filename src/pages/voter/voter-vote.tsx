@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,19 +10,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/lib/types";
-
-interface VotingSchedule {
-  id: string;
-  title: string;
-  options: {
-    id: string;
-    text: string;
-    imageUrl?: string;
-  }[];
-  image_url?: string;
-  start_date: string;
-  end_date: string;
-}
+import { VotingSchedule } from "@/types/database";
 
 const VoterVote = () => {
   const { code } = useParams<{ code: string }>();
@@ -50,6 +37,10 @@ const VoterVote = () => {
 
         if (votingError) {
           throw votingError;
+        }
+        
+        if (!votingData) {
+          throw new Error("Voting schedule not found");
         }
         
         setVoting(votingData);

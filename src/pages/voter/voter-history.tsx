@@ -1,4 +1,3 @@
-
 import { VoterLayout } from "@/components/layout/voter-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +7,7 @@ import { useRequireAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-
-interface VotingResult {
-  option_id: string;
-  option_text: string;
-  vote_count: number;
-}
+import { VotingResult } from "@/types/database";
 
 interface VotingHistory {
   voting_id: string;

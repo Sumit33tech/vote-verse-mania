@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Input } from "@/components/ui/input";
@@ -11,15 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRequireAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/lib/types";
 import { toast } from "@/components/ui/use-toast";
-
-interface VotingSchedule {
-  id: string;
-  title: string;
-  code: string;
-  start_date: string;
-  end_date: string;
-  options: any[];
-}
+import { VotingSchedule } from "@/types/database";
 
 const AdminHome = () => {
   const navigate = useNavigate();

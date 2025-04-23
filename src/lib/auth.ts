@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "./types";
 import { toast } from "@/components/ui/use-toast";
+import { Profile } from "@/types/database";
 
 export const signUp = async (
   email: string, 
@@ -58,6 +59,11 @@ export const signIn = async (email: string, password: string, expectedRole: User
 
     if (profileError) {
       throw profileError;
+    }
+
+    // Check if profileData exists before accessing its properties
+    if (!profileData) {
+      throw new Error("User profile not found");
     }
 
     // Check if the user has the expected role

@@ -43,6 +43,10 @@ const VoterHome = () => {
         throw new Error("The voting code you entered doesn't exist.");
       }
       
+      if (!data) {
+        throw new Error("No voting found with that code.");
+      }
+      
       const now = new Date();
       const startDate = new Date(data.start_date);
       const endDate = new Date(data.end_date);
