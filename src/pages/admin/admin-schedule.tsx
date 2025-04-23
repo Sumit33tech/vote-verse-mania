@@ -1,15 +1,19 @@
-
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState } from "react";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Image } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { v4 as uuidv4 } from "uuid";
+
+interface VotingOption {
+  id: string;
+  text: string;
+  imageUrl?: string;
+}
 
 const AdminSchedule = () => {
   const navigate = useNavigate();
@@ -18,7 +22,7 @@ const AdminSchedule = () => {
     title: "",
     startDate: "",
     endDate: "",
-    options: [{ id: uuidv4(), text: "" }],
+    options: [{ id: uuidv4(), text: "", imageUrl: "" }] as VotingOption[],
     imageUrl: "",
   });
 
@@ -29,11 +33,11 @@ const AdminSchedule = () => {
     });
   };
 
-  const handleOptionChange = (id: string, value: string) => {
+  const handleOptionChange = (id: string, field: keyof VotingOption, value: string) => {
     setFormData({
       ...formData,
       options: formData.options.map(option => 
-        option.id === id ? { ...option, text: value } : option
+        option.id === id ? { ...option, [field]: value } : option
       ),
     });
   };
@@ -41,7 +45,7 @@ const AdminSchedule = () => {
   const handleAddOption = () => {
     setFormData({
       ...formData,
-      options: [...formData.options, { id: uuidv4(), text: "" }],
+      options: [...formData.options, { id: uuidv4(), text: "", imageUrl: "" }],
     });
   };
 
@@ -164,41 +168,43 @@ const AdminSchedule = () => {
           <div className="space-y-3">
             {formData.options.map((option, index) => (
               <Card key={option.id}>
-                <CardContent className="p-3 flex items-center gap-2">
-                  <span className="bg-votePurple text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">
-                    {index + 1}
-                  </span>
-                  <Input
-                    value={option.text}
-                    onChange={(e) => handleOptionChange(option.id, e.target.value)}
-                    placeholder={`Option ${index + 1}`}
-                    className="flex-grow"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveOption(option.id)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 size={16} />
-                  </Button>
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-votePurple text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">
+                      {index + 1}
+                    </span>
+                    <div className="flex-grow space-y-2">
+                      <Input
+                        value={option.text}
+                        onChange={(e) => handleOptionChange(option.id, 'text', e.target.value)}
+                        placeholder={`Option ${index + 1}`}
+                        className="flex-grow"
+                        required
+                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={option.imageUrl}
+                          onChange={(e) => handleOptionChange(option.id, 'imageUrl', e.target.value)}
+                          placeholder="Image URL (optional)"
+                          className="flex-grow"
+                        />
+                        <Image className="text-gray-400" size={20} />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveOption(option.id)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="imageUrl">Image URL (Optional)</Label>
-          <Input
-            id="imageUrl"
-            name="imageUrl"
-            value={formData.imageUrl}
-            onChange={handleChange}
-            placeholder="Enter an image URL for the voting"
-          />
         </div>
 
         <Button 
