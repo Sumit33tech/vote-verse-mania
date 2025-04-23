@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
 const VoterHome = () => {
   const navigate = useNavigate();
@@ -68,21 +69,28 @@ const VoterHome = () => {
     setIsChecking(true);
 
     try {
+      // Clean up the voting code - remove whitespace and convert to uppercase
+      const cleanCode = votingCode.trim().toUpperCase();
+      console.log("Checking voting code:", cleanCode);
+      
       // Check if the code exists and if the voting is active
       const { data, error } = await supabase
         .from('voting_schedules')
         .select('id, title, start_date, end_date')
-        .eq('code', votingCode.trim())
-        .single();
+        .ilike('code', cleanCode) // Case-insensitive match
+        .maybeSingle(); // Use maybeSingle instead of single for better error handling
       
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error("Error checking voting code:", error);
-        throw new Error("The voting code you entered doesn't exist.");
+        throw new Error("Error checking voting code. Please try again.");
       }
       
       if (!data) {
-        throw new Error("No voting found with that code.");
+        console.log("No voting found with code:", cleanCode);
+        throw new Error("No voting found with that code. Please check and try again.");
       }
+      
+      console.log("Voting found:", data);
       
       const now = new Date();
       const startDate = new Date(data.start_date);
@@ -97,8 +105,9 @@ const VoterHome = () => {
       }
       
       // Navigate to voting page if code exists and voting is active
-      navigate(`/voter/vote/${votingCode.trim()}`);
+      navigate(`/voter/vote/${cleanCode}`);
     } catch (error: any) {
+      console.error("Vote join error:", error);
       toast({
         title: "Invalid code",
         description: error.message || "The voting code you entered is invalid.",
@@ -138,13 +147,19 @@ const VoterHome = () => {
               className="w-full bg-voteRed hover:bg-red-600"
               disabled={isChecking}
             >
-              {isChecking ? "Checking..." : "Join Voting"}
+              {isChecking ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Checking...
+                </>
+              ) : "Join Voting"}
             </Button>
           </form>
         </div>
         
         {loading ? (
           <div className="w-full max-w-2xl mt-8 text-center">
+            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
             <p className="text-gray-500">Loading active votings...</p>
           </div>
         ) : activeVotings.length > 0 ? (
@@ -162,6 +177,9 @@ const VoterHome = () => {
                       <div>
                         <h4 className="font-medium">{voting.title}</h4>
                         <p className="text-sm text-gray-500">
+                          Code: <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">{voting.code}</span>
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
                           Ends: {new Date(voting.end_date).toLocaleString()}
                         </p>
                       </div>

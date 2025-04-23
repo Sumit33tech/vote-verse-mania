@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,22 +30,26 @@ const VoterVote = () => {
       
       try {
         // Fetch voting schedule - make sure we're using the trimmed code
-        const trimmedCode = code.trim();
+        const cleanCode = code.trim().toUpperCase();
+        console.log("Fetching voting data for code:", cleanCode);
+        
         const { data: votingData, error: votingError } = await supabase
           .from('voting_schedules')
           .select('*')
-          .eq('code', trimmedCode)
-          .single();
+          .ilike('code', cleanCode) // Case-insensitive match
+          .maybeSingle();
 
-        if (votingError) {
+        if (votingError && votingError.code !== 'PGRST116') {
           console.error("Error fetching voting data:", votingError);
           throw votingError;
         }
         
         if (!votingData) {
+          console.error("No voting schedule found with code:", cleanCode);
           throw new Error("Voting schedule not found");
         }
         
+        console.log("Voting data found:", votingData);
         setVoting(votingData);
 
         // Check if user already voted
@@ -63,6 +68,9 @@ const VoterVote = () => {
         if (voteData) {
           setHasVoted(true);
           setSelectedOption(voteData.option_id);
+          console.log("User has already voted:", voteData);
+        } else {
+          console.log("User has not voted yet");
         }
       } catch (error: any) {
         console.error("Error in fetchVotingData:", error);
@@ -105,6 +113,12 @@ const VoterVote = () => {
     setLoading(true);
 
     try {
+      console.log("Submitting vote:", {
+        voting_id: voting.id,
+        voter_id: user.id,
+        option_id: selectedOption
+      });
+      
       // Submit vote
       const { error } = await supabase
         .from('votes')
