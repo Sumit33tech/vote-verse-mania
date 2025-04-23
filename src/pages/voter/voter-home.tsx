@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VoterLayout } from "@/components/layout/voter-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ const VoterHome = () => {
   const { user } = useRequireAuth(UserRole.VOTER);
 
   // Fetch active votings when the component mounts
-  useState(() => {
+  useEffect(() => {
     const fetchActiveVotings = async () => {
       if (!user) return;
 
