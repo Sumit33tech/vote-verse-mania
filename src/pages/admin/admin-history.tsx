@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis } from "recharts";
 
 interface VotingOption {
   id: string;
@@ -274,38 +273,36 @@ const AdminHistory = () => {
                             votes: { theme: { dark: '#7c3aed', light: '#7c3aed' } }
                           }}
                         >
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              data={selectedVoting.results.map(r => ({
-                                name: r.text,
-                                votes: r.votes
-                              }))}
-                              margin={{ top: 10, right: 10, left: 0, bottom: 40 }}
-                            >
-                              <ChartTooltip 
-                                content={props => (
-                                  <ChartTooltipContent
-                                    {...props}
-                                    formatter={(value, name) => [
-                                      `${value} votes (${
-                                        Math.round((Number(value) / selectedVoting.totalVotes) * 100)
-                                      }%)`,
-                                      name
-                                    ]}
-                                  />
-                                )}
-                              />
-                              <XAxis 
-                                dataKey="name" 
-                                angle={-45} 
-                                textAnchor="end"
-                                height={70}
-                                tickMargin={15}
-                              />
-                              <YAxis />
-                              <Bar dataKey="votes" name="Votes" fill="var(--color-votes)" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
+                          <BarChart
+                            data={selectedVoting.results.map(r => ({
+                              name: r.text,
+                              votes: r.votes
+                            }))}
+                            margin={{ top: 10, right: 10, left: 0, bottom: 40 }}
+                          >
+                            <ChartTooltip
+                              content={(props) => (
+                                <ChartTooltipContent
+                                  {...props}
+                                  formatter={(value, name) => [
+                                    `${value} votes (${
+                                      Math.round((Number(value) / selectedVoting.totalVotes) * 100)
+                                    }%)`,
+                                    name
+                                  ]}
+                                />
+                              )}
+                            />
+                            <XAxis 
+                              dataKey="name" 
+                              angle={-45} 
+                              textAnchor="end"
+                              height={70}
+                              tickMargin={15}
+                            />
+                            <YAxis />
+                            <Bar dataKey="votes" name="Votes" fill="var(--color-votes)" radius={[4, 4, 0, 0]} />
+                          </BarChart>
                         </ChartContainer>
                       </div>
                       <div className="space-y-4">
