@@ -29,17 +29,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         // Fetch user role when auth state changes
         if (session?.user) {
-          setTimeout(() => {
-            getCurrentUserRole().then(role => {
-              setUserRole(role);
-              setIsLoading(false);
-            });
+          setTimeout(async () => {
+            const role = await getCurrentUserRole();
+            setUserRole(role);
+            setIsLoading(false);
           }, 0);
         } else {
           setUserRole(null);
@@ -66,14 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const value = {
-    user,
-    session,
-    userRole,
-    isLoading,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, session, userRole, isLoading }}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => useContext(AuthContext);

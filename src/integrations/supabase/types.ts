@@ -42,12 +42,97 @@ export type Database = {
         }
         Relationships: []
       }
+      votes: {
+        Row: {
+          created_at: string
+          id: string
+          option_id: string
+          voter_id: string
+          voting_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          option_id: string
+          voter_id: string
+          voting_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_id?: string
+          voter_id?: string
+          voting_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_voting_id_fkey"
+            columns: ["voting_id"]
+            isOneToOne: false
+            referencedRelation: "voting_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voting_schedules: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          end_date: string
+          id: string
+          image_url: string | null
+          options: Json
+          start_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          end_date: string
+          id?: string
+          image_url?: string | null
+          options: Json
+          start_date: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          end_date?: string
+          id?: string
+          image_url?: string | null
+          options?: Json
+          start_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_voter_history: {
+        Args: { voter_uuid: string }
+        Returns: {
+          voting_id: string
+          code: string
+          title: string
+          start_date: string
+          end_date: string
+          options: Json
+          image_url: string
+          selected_option_id: string
+          is_active: boolean
+          results: Json
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
