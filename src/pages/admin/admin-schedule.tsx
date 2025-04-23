@@ -155,39 +155,48 @@ const AdminSchedule = () => {
 
     try {
       setIsLoading(true);
+      
+      // Cast options to Json type to satisfy TypeScript
+      const optionsJson = formData.options as unknown as Json[];
 
-      // Prepare the data for database format
-      const voteData = {
-        title: formData.title,
-        start_date: formData.startDate,
-        end_date: formData.endDate,
-        options: formData.options as unknown as Json,
-        image_url: formData.imageUrl || null,
-        created_by: user?.id
-      };
-      
-      let result;
-      
       if (isEditMode) {
         // Update existing record
-        result = await supabase
+        const updateData = {
+          title: formData.title,
+          start_date: formData.startDate,
+          end_date: formData.endDate,
+          options: optionsJson,
+          image_url: formData.imageUrl || null,
+          created_by: user?.id
+        };
+        
+        const result = await supabase
           .from('voting_schedules')
-          .update(voteData)
+          .update(updateData)
           .eq('id', id);
+          
+        if (result.error) throw result.error;
       } else {
         // Generate a unique code for the voting
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
         
         // Insert new record
-        result = await supabase
+        const insertData = {
+          code: code,
+          title: formData.title,
+          start_date: formData.startDate,
+          end_date: formData.endDate,
+          options: optionsJson,
+          image_url: formData.imageUrl || null,
+          created_by: user?.id
+        };
+        
+        const result = await supabase
           .from('voting_schedules')
-          .insert({
-            ...voteData,
-            code: code
-          });
-      }
+          .insert(insertData);
 
-      if (result.error) throw result.error;
+        if (result.error) throw result.error;
+      }
 
       toast({
         title: isEditMode ? "Voting Updated" : "Voting Scheduled",
