@@ -13,14 +13,14 @@ import { useEffect } from "react";
 const AdminLogin = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const { user, userRole } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
 
   // Redirect if already logged in as admin
   useEffect(() => {
-    if (user && userRole === UserRole.ADMIN) {
+    if (!authLoading && user && userRole === UserRole.ADMIN) {
       navigate("/admin/home");
     }
-  }, [user, userRole, navigate]);
+  }, [user, userRole, navigate, authLoading]);
 
   const handleSubmit = async (data: Record<string, string>) => {
     setIsLoading(true);
@@ -38,6 +38,7 @@ const AdminLogin = () => {
           description: error,
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
       
@@ -47,14 +48,13 @@ const AdminLogin = () => {
       });
       
       // Navigate to admin home
-      navigate("/admin/home");
+      navigate("/admin/home", { replace: true });
     } catch (error: any) {
       toast({
         title: "Login Error",
         description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };

@@ -79,17 +79,17 @@ export const useRequireAuth = (requiredRole: UserRole | null = null) => {
     if (isLoading) return;
 
     if (!user) {
-      navigate('/role-select');
+      navigate('/role-select', { replace: true });
       return;
     }
 
     if (requiredRole && userRole !== requiredRole) {
       if (userRole === UserRole.ADMIN) {
-        navigate('/admin/home');
+        navigate('/admin/home', { replace: true });
       } else if (userRole === UserRole.VOTER) {
-        navigate('/voter/home');
+        navigate('/voter/home', { replace: true });
       } else {
-        navigate('/role-select');
+        navigate('/role-select', { replace: true });
       }
     }
   }, [user, userRole, isLoading, navigate, requiredRole]);

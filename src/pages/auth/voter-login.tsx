@@ -12,14 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 const VoterLogin = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const { user, userRole } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
 
   // Redirect if already logged in as voter
   useEffect(() => {
-    if (user && userRole === UserRole.VOTER) {
+    if (!authLoading && user && userRole === UserRole.VOTER) {
       navigate("/voter/home");
     }
-  }, [user, userRole, navigate]);
+  }, [user, userRole, navigate, authLoading]);
 
   const handleSubmit = async (data: Record<string, string>) => {
     setIsLoading(true);
@@ -37,6 +37,7 @@ const VoterLogin = () => {
           description: error,
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
       
@@ -45,15 +46,14 @@ const VoterLogin = () => {
         description: "Welcome to Vote Mania!",
       });
       
-      // Navigate to voter home
-      navigate("/voter/home");
+      // Navigate to voter home with replace: true to prevent going back to login
+      navigate("/voter/home", { replace: true });
     } catch (error: any) {
       toast({
         title: "Login Error",
         description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };

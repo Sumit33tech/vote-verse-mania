@@ -15,18 +15,14 @@ const RoleSelect = () => {
 
   // Check if user is already authenticated and redirect accordingly
   useEffect(() => {
-    if (!isLoading && user) {
-      if (userRole === UserRole.ADMIN) {
+    if (!isLoading) {
+      if (user && userRole === UserRole.ADMIN) {
         navigate("/admin/home");
         return;
-      } else if (userRole === UserRole.VOTER) {
+      } else if (user && userRole === UserRole.VOTER) {
         navigate("/voter/home");
         return;
       }
-      // If user has no role, log them out
-      signOut().then(() => {
-        console.log("User logged out due to missing role");
-      });
     }
   }, [user, userRole, isLoading, navigate]);
   
