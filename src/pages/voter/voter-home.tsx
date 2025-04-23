@@ -74,8 +74,9 @@ const VoterHome = () => {
       console.log("Checking voting code:", cleanCode);
       
       // Check if the code exists and if the voting is active
-      // Instead of using ilike, directly compare with lowercase values for more flexibility
-      const { data, error } = await supabase
+      // First try exact match, then try case-insensitive match if needed
+      // Using let instead of const to allow reassigning the value
+      let { data, error } = await supabase
         .from('voting_schedules')
         .select('id, title, start_date, end_date')
         .eq('code', cleanCode) // Use direct equality for exact matches
@@ -88,6 +89,7 @@ const VoterHome = () => {
       
       if (!data) {
         // Try a second more flexible search if the exact match failed
+        console.log("No exact match found, trying case-insensitive search...");
         const { data: flexData, error: flexError } = await supabase
           .from('voting_schedules')
           .select('id, title, start_date, end_date')
@@ -99,7 +101,7 @@ const VoterHome = () => {
           throw new Error("No voting found with that code. Please check and try again.");
         }
         
-        // Use the data from the flexible search
+        // Now we can reassign data with flexData
         data = flexData;
       }
       
