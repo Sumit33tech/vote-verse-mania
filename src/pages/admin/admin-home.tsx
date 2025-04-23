@@ -4,7 +4,7 @@ import { AdminLayout } from "@/components/layout/admin-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, Edit } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,7 +57,9 @@ const AdminHome = () => {
     voting.code.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleRemoveVoting = async (id: string) => {
+  const handleRemoveVoting = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation when clicking remove button
+    
     try {
       const { error } = await supabase
         .from('voting_schedules')
@@ -98,6 +100,25 @@ const AdminHome = () => {
     });
   };
 
+  const isVotingActive = (startDate: string, endDate: string) => {
+    const now = new Date();
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return now >= start && now <= end;
+  };
+
+  const isVotingComplete = (endDate: string) => {
+    const now = new Date();
+    const end = new Date(endDate);
+    return now > end;
+  };
+
+  const isVotingUpcoming = (startDate: string) => {
+    const now = new Date();
+    const start = new Date(startDate);
+    return now < start;
+  };
+
   if (isLoading && !user) {
     return (
       <AdminLayout title="Scheduled Votings">
@@ -129,19 +150,37 @@ const AdminHome = () => {
                   className="p-4 cursor-pointer"
                   onClick={() => handleEditVoting(voting.id)}
                 >
-                  <h3 className="font-semibold text-lg">{voting.title}</h3>
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-semibold text-lg">{voting.title}</h3>
+                    {isVotingActive(voting.start_date, voting.end_date) ? (
+                      <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Active</span>
+                    ) : isVotingComplete(voting.end_date) ? (
+                      <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">Completed</span>
+                    ) : (
+                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Upcoming</span>
+                    )}
+                  </div>
                   <div className="flex justify-between items-center mt-2 text-sm text-gray-600">
                     <span>Code: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{voting.code}</span></span>
                     <span>{formatDate(voting.start_date)} - {formatDate(voting.end_date)}</span>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="bg-gray-50 py-2 px-4 flex justify-end">
+              <CardFooter className="bg-gray-50 py-2 px-4 flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-gray-600"
+                  onClick={() => handleEditVoting(voting.id)}
+                >
+                  <Edit size={16} className="mr-1" />
+                  Edit
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  onClick={() => handleRemoveVoting(voting.id)}
+                  onClick={(e) => handleRemoveVoting(voting.id, e)}
                 >
                   <Trash2 size={16} className="mr-1" />
                   Remove

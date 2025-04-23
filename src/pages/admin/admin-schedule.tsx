@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlusCircle, Trash2, Image } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +22,8 @@ interface VotingOption {
 const AdminSchedule = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { id } = useParams();
+  const isEditMode = !!id;
   
   const [formData, setFormData] = useState({
     title: "",
@@ -30,6 +32,53 @@ const AdminSchedule = () => {
     options: [{ id: uuidv4(), text: "", imageUrl: "" }] as VotingOption[],
     imageUrl: "",
   });
+  
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch voting data if in edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchVotingData = async () => {
+        setIsLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from('voting_schedules')
+            .select('*')
+            .eq('id', id)
+            .single();
+          
+          if (error) throw error;
+          
+          if (data) {
+            // Convert database format to form format
+            setFormData({
+              title: data.title,
+              startDate: new Date(data.start_date).toISOString().slice(0, 16),
+              endDate: new Date(data.end_date).toISOString().slice(0, 16),
+              options: Array.isArray(data.options) ? 
+                data.options.map((opt: any) => ({
+                  id: opt.id,
+                  text: opt.text,
+                  imageUrl: opt.imageUrl || ""
+                })) : 
+                [{ id: uuidv4(), text: "", imageUrl: "" }],
+              imageUrl: data.image_url || "",
+            });
+          }
+        } catch (error: any) {
+          toast({
+            title: "Error",
+            description: "Failed to load voting data: " + error.message,
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      fetchVotingData();
+    }
+  }, [id, isEditMode]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -105,29 +154,46 @@ const AdminSchedule = () => {
     }
 
     try {
-      // Generate a unique code for the voting
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      
-      // Ensure the options are stored in the correct format by directly passing the array
-      // This will be automatically serialized as JSON by the Supabase client
-      
-      const { error } = await supabase
-        .from('voting_schedules')
-        .insert({
-          title: formData.title,
-          code: code,
-          start_date: formData.startDate,
-          end_date: formData.endDate,
-          options: formData.options as unknown as Json[],
-          image_url: formData.imageUrl || null,
-          created_by: user?.id
-        });
+      setIsLoading(true);
 
-      if (error) throw error;
+      // Prepare the data for database format
+      const voteData = {
+        title: formData.title,
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        options: formData.options as unknown as Json,
+        image_url: formData.imageUrl || null,
+        created_by: user?.id
+      };
+      
+      let result;
+      
+      if (isEditMode) {
+        // Update existing record
+        result = await supabase
+          .from('voting_schedules')
+          .update(voteData)
+          .eq('id', id);
+      } else {
+        // Generate a unique code for the voting
+        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        
+        // Insert new record
+        result = await supabase
+          .from('voting_schedules')
+          .insert({
+            ...voteData,
+            code: code
+          });
+      }
+
+      if (result.error) throw result.error;
 
       toast({
-        title: "Voting Scheduled",
-        description: "Your voting has been scheduled successfully!",
+        title: isEditMode ? "Voting Updated" : "Voting Scheduled",
+        description: isEditMode 
+          ? "Your voting has been updated successfully!" 
+          : "Your voting has been scheduled successfully!",
       });
 
       // Navigate to admin home with replace: true to prevent going back
@@ -138,113 +204,122 @@ const AdminSchedule = () => {
         description: error.message || "Failed to schedule voting",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <AdminLayout title="Schedule New Voting">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="title">Voting Title</Label>
-          <Input
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            placeholder="Enter a title for the voting"
-            required
-          />
+    <AdminLayout title={isEditMode ? "Edit Voting Schedule" : "Schedule New Voting"}>
+      {isLoading ? (
+        <div className="flex justify-center items-center py-10">
+          <p className="text-gray-500">Loading...</p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="startDate">Start Date & Time</Label>
+            <Label htmlFor="title">Voting Title</Label>
             <Input
-              id="startDate"
-              name="startDate"
-              type="datetime-local"
-              value={formData.startDate}
+              id="title"
+              name="title"
+              value={formData.title}
               onChange={handleChange}
+              placeholder="Enter a title for the voting"
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="endDate">End Date & Time</Label>
-            <Input
-              id="endDate"
-              name="endDate"
-              type="datetime-local"
-              value={formData.endDate}
-              onChange={handleChange}
-              required
-            />
-          </div>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Start Date & Time</Label>
+              <Input
+                id="startDate"
+                name="startDate"
+                type="datetime-local"
+                value={formData.startDate}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <Label>Voting Options</Label>
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm"
-              onClick={handleAddOption}
-            >
-              <PlusCircle size={16} className="mr-1" />
-              Add Option
-            </Button>
+            <div className="space-y-2">
+              <Label htmlFor="endDate">End Date & Time</Label>
+              <Input
+                id="endDate"
+                name="endDate"
+                type="datetime-local"
+                value={formData.endDate}
+                onChange={handleChange}
+                required
+              />
+            </div>
           </div>
 
-          <div className="space-y-3">
-            {formData.options.map((option, index) => (
-              <Card key={option.id}>
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-votePurple text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">
-                      {index + 1}
-                    </span>
-                    <div className="flex-grow space-y-2">
-                      <Input
-                        value={option.text}
-                        onChange={(e) => handleOptionChange(option.id, 'text', e.target.value)}
-                        placeholder={`Option ${index + 1}`}
-                        className="flex-grow"
-                        required
-                      />
-                      <div className="flex items-center gap-2">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Label>Voting Options</Label>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={handleAddOption}
+              >
+                <PlusCircle size={16} className="mr-1" />
+                Add Option
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {formData.options.map((option, index) => (
+                <Card key={option.id}>
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-votePurple text-white w-6 h-6 rounded-full flex items-center justify-center text-sm flex-shrink-0">
+                        {index + 1}
+                      </span>
+                      <div className="flex-grow space-y-2">
                         <Input
-                          value={option.imageUrl}
-                          onChange={(e) => handleOptionChange(option.id, 'imageUrl', e.target.value)}
-                          placeholder="Image URL (optional)"
+                          value={option.text}
+                          onChange={(e) => handleOptionChange(option.id, 'text', e.target.value)}
+                          placeholder={`Option ${index + 1}`}
                           className="flex-grow"
+                          required
                         />
-                        <Image className="text-gray-400" size={20} />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={option.imageUrl}
+                            onChange={(e) => handleOptionChange(option.id, 'imageUrl', e.target.value)}
+                            placeholder="Image URL (optional)"
+                            className="flex-grow"
+                          />
+                          <Image className="text-gray-400" size={20} />
+                        </div>
                       </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveOption(option.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveOption(option.id)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <Button 
-          type="submit" 
-          className="w-full bg-votePurple hover:bg-votePurple-secondary"
-        >
-          Schedule Voting
-        </Button>
-      </form>
+          <Button 
+            type="submit" 
+            className="w-full bg-votePurple hover:bg-votePurple-secondary"
+            disabled={isLoading}
+          >
+            {isEditMode ? "Update Voting" : "Schedule Voting"}
+          </Button>
+        </form>
+      )}
     </AdminLayout>
   );
 };
