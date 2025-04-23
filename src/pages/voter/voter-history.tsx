@@ -74,7 +74,6 @@ const VoterHistory = () => {
   const getWinningOption = (voting: VotingHistory) => {
     if (!voting.results || voting.results.length === 0) return null;
     
-    // Find the option with the highest vote count
     return voting.results.reduce((prev, current) => 
       (prev.vote_count > current.vote_count) ? prev : current
     );

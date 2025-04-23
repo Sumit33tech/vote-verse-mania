@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { VoterLayout } from "@/components/layout/voter-layout";
 import { Input } from "@/components/ui/input";
