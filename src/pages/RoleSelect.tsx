@@ -5,15 +5,46 @@ import { PageContainer } from "@/components/layout/page-container";
 import { UserRole } from "@/lib/types";
 import { useNavigate } from "react-router-dom";
 import { User, UserCog } from "lucide-react";
+import { useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { signOut } from "@/lib/auth";
 
 const RoleSelect = () => {
   const navigate = useNavigate();
+  const { user, userRole, isLoading } = useAuth();
 
+  // Check if user is already authenticated and redirect accordingly
+  useEffect(() => {
+    if (!isLoading && user) {
+      if (userRole === UserRole.ADMIN) {
+        navigate("/admin/home");
+        return;
+      } else if (userRole === UserRole.VOTER) {
+        navigate("/voter/home");
+        return;
+      }
+      // If user has no role, log them out
+      signOut().then(() => {
+        console.log("User logged out due to missing role");
+      });
+    }
+  }, [user, userRole, isLoading, navigate]);
+  
   const handleRoleSelect = (role: UserRole) => {
-    // In a real app, we'd store this in context or localStorage
-    localStorage.setItem("selectedRole", role);
-    navigate(`/${role}/login`);
+    // Clean any previous auth state to ensure fresh login
+    signOut().then(() => {
+      localStorage.setItem("selectedRole", role);
+      navigate(`/${role}/login`);
+    });
   };
+
+  if (isLoading) {
+    return (
+      <PageContainer className="items-center justify-center">
+        <p>Loading...</p>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer className="items-center justify-center text-center">

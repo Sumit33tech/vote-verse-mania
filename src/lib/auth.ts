@@ -81,10 +81,16 @@ export const signIn = async (email: string, password: string, expectedRole: User
 
 export const signOut = async () => {
   try {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({
+      scope: 'local' // Ensure we clear everything stored locally
+    });
     if (error) {
       throw error;
     }
+    
+    // Also clear any local storage items we're using
+    localStorage.removeItem("selectedRole");
+    
     return { error: null };
   } catch (error: any) {
     console.error("Logout error:", error);
@@ -128,6 +134,34 @@ export const getCurrentUserRole = async (): Promise<UserRole | null> => {
     return data.role as UserRole;
   } catch (error) {
     console.error("Error getting user role:", error);
+    return null;
+  }
+};
+
+// Function to fetch user profile data
+export const getUserProfile = async (): Promise<Profile | null> => {
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session?.user) {
+      console.error("No active session found");
+      return null;
+    }
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+      
+    if (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in getUserProfile:", error);
     return null;
   }
 };
