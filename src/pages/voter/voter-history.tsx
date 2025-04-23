@@ -1,26 +1,13 @@
+import { useState, useEffect } from "react";
 import { VoterLayout } from "@/components/layout/voter-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { VotingResult } from "@/types/database";
-
-interface VotingHistory {
-  voting_id: string;
-  code: string;
-  title: string;
-  start_date: string;
-  end_date: string;
-  options: any[];
-  image_url?: string;
-  selected_option_id: string;
-  is_active: boolean;
-  results: VotingResult[] | null;
-}
+import { VotingHistory } from "@/types/database";
 
 const VoterHistory = () => {
   const [selectedVoting, setSelectedVoting] = useState<VotingHistory | null>(null);

@@ -40,3 +40,16 @@ export interface VotingResult {
   option_text: string;
   vote_count: number;
 }
+
+export interface VotingHistory {
+  voting_id: string;
+  code: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  options: any[];
+  image_url?: string;
+  selected_option_id: string;
+  is_active: boolean;
+  results: VotingResult[] | null;
+}

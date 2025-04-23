@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,13 +49,11 @@ const AdminHistory = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("all");
   
-  // Fetch all votings
   useEffect(() => {
     if (!user) return;
     
     const fetchAllVotings = async () => {
       try {
-        // Get all votings without date filter
         const { data: votingsData, error: votingsError } = await supabase
           .from('voting_schedules')
           .select('*')
@@ -70,10 +67,8 @@ const AdminHistory = () => {
           return;
         }
         
-        // For each voting, get the votes and determine status
         const votingsWithResults = await Promise.all(
           votingsData.map(async (voting) => {
-            // Get all votes for this voting
             const { data: votesData, error: votesError } = await supabase
               .from('votes')
               .select('option_id')
@@ -84,14 +79,12 @@ const AdminHistory = () => {
             const votes = votesData || [];
             const totalVotes = votes.length;
             
-            // Count votes for each option
             const voteCounts: Record<string, number> = {};
             votes.forEach(vote => {
               const optionId = vote.option_id;
               voteCounts[optionId] = (voteCounts[optionId] || 0) + 1;
             });
             
-            // Format results
             const options = Array.isArray(voting.options) ? voting.options : [];
             const results = options.map(option => ({
               optionId: option.id,
@@ -99,7 +92,6 @@ const AdminHistory = () => {
               votes: voteCounts[option.id] || 0
             }));
             
-            // Determine status
             const now = new Date();
             const startDate = new Date(voting.start_date);
             const endDate = new Date(voting.end_date);
@@ -157,7 +149,6 @@ const AdminHistory = () => {
     );
   };
 
-  // Filter votings based on active tab
   const filteredVotings = votings.filter(voting => {
     if (activeTab === "all") return true;
     return voting.status === activeTab;
