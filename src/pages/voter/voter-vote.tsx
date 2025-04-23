@@ -26,16 +26,18 @@ const VoterVote = () => {
   useEffect(() => {
     const fetchVotingData = async () => {
       if (!code || !user) return;
-
+      
       try {
-        // Fetch voting schedule
+        // Fetch voting schedule - make sure we're using the trimmed code
+        const trimmedCode = code.trim();
         const { data: votingData, error: votingError } = await supabase
           .from('voting_schedules')
           .select('*')
-          .eq('code', code)
+          .eq('code', trimmedCode)
           .single();
 
         if (votingError) {
+          console.error("Error fetching voting data:", votingError);
           throw votingError;
         }
         
@@ -54,6 +56,7 @@ const VoterVote = () => {
           .maybeSingle();
 
         if (voteError && voteError.code !== 'PGRST116') {
+          console.error("Error checking vote status:", voteError);
           throw voteError;
         }
 
@@ -61,20 +64,22 @@ const VoterVote = () => {
           setHasVoted(true);
           setSelectedOption(voteData.option_id);
         }
-      } catch (error) {
-        console.error("Error fetching voting data:", error);
+      } catch (error: any) {
+        console.error("Error in fetchVotingData:", error);
         toast({
           title: "Error",
-          description: "Failed to load voting data",
+          description: "Failed to load voting data. Please check your voting code.",
           variant: "destructive",
         });
+        // Navigate back to home if there's an error
+        setTimeout(() => navigate("/voter/home"), 2000);
       } finally {
         setFetchingVoting(false);
       }
     };
 
     fetchVotingData();
-  }, [code, user]);
+  }, [code, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

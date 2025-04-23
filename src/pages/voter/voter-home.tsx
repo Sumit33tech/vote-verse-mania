@@ -72,10 +72,11 @@ const VoterHome = () => {
       const { data, error } = await supabase
         .from('voting_schedules')
         .select('id, title, start_date, end_date')
-        .eq('code', votingCode)
+        .eq('code', votingCode.trim())
         .single();
       
       if (error) {
+        console.error("Error checking voting code:", error);
         throw new Error("The voting code you entered doesn't exist.");
       }
       
@@ -96,7 +97,7 @@ const VoterHome = () => {
       }
       
       // Navigate to voting page if code exists and voting is active
-      navigate(`/voter/vote/${votingCode}`);
+      navigate(`/voter/vote/${votingCode.trim()}`);
     } catch (error: any) {
       toast({
         title: "Invalid code",
