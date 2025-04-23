@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +16,8 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 
 interface VotingOption {
   id: string;
@@ -115,6 +118,14 @@ const AdminHistory = () => {
         );
         
         setVotings(votingsWithResults);
+        
+        // If a voting was selected before refresh, update it
+        if (selectedVoting) {
+          const updatedSelectedVoting = votingsWithResults.find(voting => voting.id === selectedVoting.id);
+          if (updatedSelectedVoting) {
+            setSelectedVoting(updatedSelectedVoting);
+          }
+        }
       } catch (error: any) {
         console.error("Error fetching voting data:", error);
         toast({
@@ -128,7 +139,27 @@ const AdminHistory = () => {
     };
     
     fetchAllVotings();
-  }, [user]);
+    
+    // Subscribe to changes in the votes table to update in real-time
+    const votesChannel = supabase
+      .channel('admin-votes-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'votes' 
+        }, 
+        () => {
+          console.log('Votes changed, refreshing data');
+          fetchAllVotings();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(votesChannel);
+    };
+  }, [user, selectedVoting?.id]);
   
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -235,31 +266,74 @@ const AdminHistory = () => {
                   </h3>
                   
                   {selectedVoting.totalVotes > 0 ? (
-                    <div className="space-y-4">
-                      {selectedVoting.results.map((option) => (
-                        <div key={option.optionId} className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span>{option.text}</span>
-                            <span className="font-medium">
-                              {option.votes} votes 
-                              ({selectedVoting.totalVotes > 0 
-                                ? Math.round((option.votes / selectedVoting.totalVotes) * 100) 
-                                : 0}%)
-                            </span>
+                    <>
+                      <div className="mb-8 h-60">
+                        <ChartContainer 
+                          className="h-full"
+                          config={{
+                            votes: { theme: { dark: '#7c3aed', light: '#7c3aed' } }
+                          }}
+                        >
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={selectedVoting.results.map(r => ({
+                                name: r.text,
+                                votes: r.votes
+                              }))}
+                              margin={{ top: 10, right: 10, left: 0, bottom: 40 }}
+                            >
+                              <ChartTooltip 
+                                content={props => (
+                                  <ChartTooltipContent
+                                    {...props}
+                                    formatter={(value, name) => [
+                                      `${value} votes (${
+                                        Math.round((Number(value) / selectedVoting.totalVotes) * 100)
+                                      }%)`,
+                                      name
+                                    ]}
+                                  />
+                                )}
+                              />
+                              <XAxis 
+                                dataKey="name" 
+                                angle={-45} 
+                                textAnchor="end"
+                                height={70}
+                                tickMargin={15}
+                              />
+                              <YAxis />
+                              <Bar dataKey="votes" name="Votes" fill="var(--color-votes)" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </ChartContainer>
+                      </div>
+                      <div className="space-y-4">
+                        {selectedVoting.results.map((option) => (
+                          <div key={option.optionId} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span>{option.text}</span>
+                              <span className="font-medium">
+                                {option.votes} votes 
+                                ({selectedVoting.totalVotes > 0 
+                                  ? Math.round((option.votes / selectedVoting.totalVotes) * 100) 
+                                  : 0}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-4">
+                              <div 
+                                className="bg-votePurple h-4 rounded-full"
+                                style={{ 
+                                  width: selectedVoting.totalVotes > 0 
+                                    ? `${(option.votes / selectedVoting.totalVotes) * 100}%` 
+                                    : '0%' 
+                                }}
+                              ></div>
+                            </div>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-4">
-                            <div 
-                              className="bg-votePurple h-4 rounded-full"
-                              style={{ 
-                                width: selectedVoting.totalVotes > 0 
-                                  ? `${(option.votes / selectedVoting.totalVotes) * 100}%` 
-                                  : '0%' 
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center py-6">
                       <p className="text-gray-500">No votes have been recorded for this voting.</p>
