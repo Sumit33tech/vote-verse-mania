@@ -1,6 +1,6 @@
 
 // Custom type definitions for Supabase tables
-export type Database = {
+export type CustomDatabase = {
   public: {
     Tables: {
       profiles: {
@@ -130,5 +130,3 @@ export type Database = {
   };
 };
 
-// Extend the Database type to be used in the client
-export type CustomDatabase = Database;
