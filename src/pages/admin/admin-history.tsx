@@ -118,7 +118,6 @@ const AdminHistory = () => {
         
         setVotings(votingsWithResults);
         
-        // If a voting was selected before refresh, update it
         if (selectedVoting) {
           const updatedSelectedVoting = votingsWithResults.find(voting => voting.id === selectedVoting.id);
           if (updatedSelectedVoting) {
@@ -139,7 +138,6 @@ const AdminHistory = () => {
     
     fetchAllVotings();
     
-    // Subscribe to changes in the votes table to update in real-time
     const votesChannel = supabase
       .channel('admin-votes-changes')
       .on('postgres_changes', 
@@ -193,6 +191,22 @@ const AdminHistory = () => {
       </AdminLayout>
     );
   }
+
+  const renderTooltipContent = (props: any) => {
+    if (!selectedVoting) return null;
+    
+    return (
+      <ChartTooltipContent
+        {...props}
+        formatter={(value, name) => [
+          `${value} votes (${
+            Math.round((Number(value) / selectedVoting.totalVotes) * 100)
+          }%)`,
+          name
+        ]}
+      />
+    );
+  };
 
   return (
     <AdminLayout title="Voting Dashboard">
@@ -280,19 +294,7 @@ const AdminHistory = () => {
                             }))}
                             margin={{ top: 10, right: 10, left: 0, bottom: 40 }}
                           >
-                            <ChartTooltip
-                              content={(props) => (
-                                <ChartTooltipContent
-                                  {...props}
-                                  formatter={(value, name) => [
-                                    `${value} votes (${
-                                      Math.round((Number(value) / selectedVoting.totalVotes) * 100)
-                                    }%)`,
-                                    name
-                                  ]}
-                                />
-                              )}
-                            />
+                            <ChartTooltip content={renderTooltipContent} />
                             <XAxis 
                               dataKey="name" 
                               angle={-45} 
