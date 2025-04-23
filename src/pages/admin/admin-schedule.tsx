@@ -1,3 +1,4 @@
+
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { toast } from "@/components/ui/use-toast";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { Json } from "@/integrations/supabase/types";
 
 interface VotingOption {
   id: string;
@@ -106,6 +108,9 @@ const AdminSchedule = () => {
       // Generate a unique code for the voting
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       
+      // Convert options to a JSON-safe format that matches the database schema
+      const jsonOptions = formData.options as unknown as Json;
+      
       const { error } = await supabase
         .from('voting_schedules')
         .insert({
@@ -113,8 +118,8 @@ const AdminSchedule = () => {
           code: code,
           start_date: formData.startDate,
           end_date: formData.endDate,
-          options: formData.options,
-          image_url: formData.imageUrl,
+          options: jsonOptions,
+          image_url: formData.imageUrl || null,
           created_by: user?.id
         });
 
