@@ -1,16 +1,23 @@
 
+import { useState } from "react";
 import { VoterLayout } from "@/components/layout/voter-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useRequireAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/lib/types";
 
 const VoterHome = () => {
   const navigate = useNavigate();
   const [votingCode, setVotingCode] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
+  
+  // Protect this route
+  useRequireAuth(UserRole.VOTER);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!votingCode) {
@@ -22,16 +29,42 @@ const VoterHome = () => {
       return;
     }
 
-    // In a real app, we'd validate this against the database
-    if (votingCode === "BOARD123" || votingCode === "BUDGET456" || votingCode === "LOGO789") {
-      console.log("Entered voting with code:", votingCode);
+    setIsChecking(true);
+
+    try {
+      // Check if the code exists and if the voting is active
+      const { data, error } = await supabase
+        .from('voting_schedules')
+        .select('id, title, start_date, end_date')
+        .eq('code', votingCode)
+        .single();
+      
+      if (error) {
+        throw new Error("The voting code you entered doesn't exist.");
+      }
+      
+      const now = new Date();
+      const startDate = new Date(data.start_date);
+      const endDate = new Date(data.end_date);
+      
+      if (now < startDate) {
+        throw new Error("This voting hasn't started yet. It will begin on " + startDate.toLocaleString());
+      }
+      
+      if (now > endDate) {
+        throw new Error("This voting has already ended. It closed on " + endDate.toLocaleString());
+      }
+      
+      // Navigate to voting page if code exists and voting is active
       navigate(`/voter/vote/${votingCode}`);
-    } else {
+    } catch (error: any) {
       toast({
         title: "Invalid code",
-        description: "The voting code you entered doesn't exist or has expired.",
+        description: error.message || "The voting code you entered is invalid.",
         variant: "destructive",
       });
+    } finally {
+      setIsChecking(false);
     }
   };
 
@@ -51,13 +84,15 @@ const VoterHome = () => {
               placeholder="e.g., BOARD123"
               className="text-center text-xl font-mono tracking-wider uppercase"
               maxLength={10}
+              disabled={isChecking}
             />
             
             <Button 
               type="submit" 
               className="w-full bg-voteRed hover:bg-red-600"
+              disabled={isChecking}
             >
-              Join Voting
+              {isChecking ? "Checking..." : "Join Voting"}
             </Button>
           </form>
         </div>

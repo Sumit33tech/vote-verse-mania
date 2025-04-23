@@ -1,26 +1,65 @@
 
+import { useState, useEffect } from "react";
 import { AuthForm } from "@/components/auth/auth-form";
 import { Logo } from "@/components/ui/logo";
 import { PageContainer } from "@/components/layout/page-container";
 import { UserRole } from "@/lib/types";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
+import { signUp } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AdminSignup = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const { user, userRole } = useAuth();
 
-  const handleSubmit = (data: Record<string, string>) => {
-    // In a real app, we'd integrate with an authentication service
-    console.log("Admin signup:", data);
+  // Redirect if already logged in as admin
+  useEffect(() => {
+    if (user && userRole === UserRole.ADMIN) {
+      navigate("/admin/home");
+    }
+  }, [user, userRole, navigate]);
+
+  const handleSubmit = async (data: Record<string, string>) => {
+    setIsLoading(true);
     
-    // For demo purposes, always succeed
-    toast({
-      title: "Account Created",
-      description: "Your admin account has been created successfully!",
-    });
-    
-    // Navigate to admin login
-    navigate("/admin/login");
+    try {
+      const { data: authData, error } = await signUp(
+        data.email, 
+        data.password, 
+        {
+          name: data.name,
+          contact: data.contact,
+          role: UserRole.ADMIN
+        }
+      );
+      
+      if (error) {
+        toast({
+          title: "Signup Failed",
+          description: error,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Account Created",
+        description: "Your admin account has been created successfully!",
+      });
+      
+      // Navigate to admin login
+      navigate("/admin/login");
+    } catch (error: any) {
+      toast({
+        title: "Signup Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -33,7 +72,8 @@ const AdminSignup = () => {
       <AuthForm 
         type="signup" 
         role={UserRole.ADMIN} 
-        onSubmit={handleSubmit} 
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
       />
     </PageContainer>
   );

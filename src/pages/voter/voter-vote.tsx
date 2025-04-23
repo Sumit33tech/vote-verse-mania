@@ -7,66 +7,153 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { PageContainer } from "@/components/layout/page-container";
 import { Logo } from "@/components/ui/logo";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useRequireAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/lib/types";
 
-// Mock data
-const mockVotings = {
-  "BOARD123": {
-    id: "1",
-    title: "Board Member Election",
-    options: [
-      { id: "1", text: "John Smith" },
-      { id: "2", text: "Emily Johnson" },
-      { id: "3", text: "Michael Brown" },
-    ],
-    imageUrl: "",
-  },
-  "BUDGET456": {
-    id: "2",
-    title: "Budget Approval",
-    options: [
-      { id: "1", text: "Approve" },
-      { id: "2", text: "Reject" },
-      { id: "3", text: "Abstain" },
-    ],
-    imageUrl: "",
-  },
-  "LOGO789": {
-    id: "3",
-    title: "New Logo Selection",
-    options: [
-      { id: "1", text: "Design A - Modern" },
-      { id: "2", text: "Design B - Classic" },
-      { id: "3", text: "Design C - Minimalist" },
-    ],
-    imageUrl: "https://via.placeholder.com/400x200?text=Logo+Options",
-  },
-};
+interface VotingSchedule {
+  id: string;
+  title: string;
+  options: {
+    id: string;
+    text: string;
+    imageUrl?: string;
+  }[];
+  image_url?: string;
+  start_date: string;
+  end_date: string;
+}
 
 const VoterVote = () => {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  const { user } = useRequireAuth(UserRole.VOTER);
   
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [voting, setVoting] = useState<VotingSchedule | null>(null);
+  const [fetchingVoting, setFetchingVoting] = useState(true);
   
   useEffect(() => {
-    // Check if user has already voted
-    const checkVoted = async () => {
-      // In a real app, we'd check against a database using the user's ID and voting ID
-      const voted = localStorage.getItem(`voted-${code}`);
-      if (voted) {
-        setHasVoted(true);
-        setSelectedOption(voted);
+    const fetchVotingData = async () => {
+      if (!code || !user) return;
+
+      try {
+        // Fetch voting schedule
+        const { data: votingData, error: votingError } = await supabase
+          .from('voting_schedules')
+          .select('*')
+          .eq('code', code)
+          .single();
+
+        if (votingError) {
+          throw votingError;
+        }
+        
+        setVoting(votingData);
+
+        // Check if user already voted
+        const { data: voteData, error: voteError } = await supabase
+          .from('votes')
+          .select('option_id')
+          .eq('voting_id', votingData.id)
+          .eq('voter_id', user.id)
+          .maybeSingle();
+
+        if (voteError && voteError.code !== 'PGRST116') {
+          throw voteError;
+        }
+
+        if (voteData) {
+          setHasVoted(true);
+          setSelectedOption(voteData.option_id);
+        }
+      } catch (error) {
+        console.error("Error fetching voting data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load voting data",
+          variant: "destructive",
+        });
+      } finally {
+        setFetchingVoting(false);
       }
     };
-    
-    checkVoted();
-  }, [code]);
 
-  // Get the voting data based on code
-  const voting = code ? mockVotings[code as keyof typeof mockVotings] : null;
+    fetchVotingData();
+  }, [code, user]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedOption) {
+      toast({
+        title: "No option selected",
+        description: "Please select an option to vote.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!voting || !user) {
+      toast({
+        title: "Error",
+        description: "Missing voting or user information",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Submit vote
+      const { error } = await supabase
+        .from('votes')
+        .insert({
+          voting_id: voting.id,
+          voter_id: user.id,
+          option_id: selectedOption
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          // Unique constraint violation - user has already voted
+          throw new Error("You have already voted in this voting session.");
+        }
+        throw error;
+      }
+      
+      setHasVoted(true);
+      
+      toast({
+        title: "Vote Recorded",
+        description: "Your vote has been successfully recorded!",
+      });
+    } catch (error: any) {
+      console.error("Error submitting vote:", error);
+      toast({
+        title: "Error",
+        description: error.message || "There was an error submitting your vote. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (fetchingVoting) {
+    return (
+      <PageContainer className="items-center justify-center text-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p>Loading voting information...</p>
+        </div>
+      </PageContainer>
+    );
+  }
 
   if (!voting) {
     return (
@@ -84,50 +171,6 @@ const VoterVote = () => {
       </PageContainer>
     );
   }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedOption) {
-      toast({
-        title: "No option selected",
-        description: "Please select an option to vote.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // In a real app, we'd send this to the server
-      console.log("Vote submitted:", {
-        votingId: voting.id,
-        optionId: selectedOption,
-      });
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Save vote locally for demo
-      localStorage.setItem(`voted-${code}`, selectedOption);
-      
-      setHasVoted(true);
-      
-      toast({
-        title: "Vote Recorded",
-        description: "Your vote has been successfully recorded!",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "There was an error submitting your vote. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <PageContainer>
@@ -147,10 +190,10 @@ const VoterVote = () => {
         <h1 className="text-2xl font-bold">{voting.title}</h1>
       </div>
       
-      {voting.imageUrl && (
+      {voting.image_url && (
         <div className="mb-6">
           <img 
-            src={voting.imageUrl} 
+            src={voting.image_url} 
             alt={voting.title} 
             className="rounded-lg w-full object-cover max-h-64"
           />
@@ -176,6 +219,15 @@ const VoterVote = () => {
                 />
                 <span>{option.text}</span>
               </div>
+              {option.imageUrl && (
+                <div className="mt-2">
+                  <img 
+                    src={option.imageUrl}
+                    alt={option.text}
+                    className="rounded-md max-h-32 object-contain"
+                  />
+                </div>
+              )}
             </Card>
           ))}
         </div>
@@ -192,7 +244,14 @@ const VoterVote = () => {
             className="w-full bg-voteRed hover:bg-red-600"
             disabled={!selectedOption || loading}
           >
-            {loading ? "Submitting..." : "Submit Vote"}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              "Submit Vote"
+            )}
           </Button>
         )}
       </form>

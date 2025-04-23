@@ -1,26 +1,70 @@
 
+import { useState, useEffect } from "react";
 import { AuthForm } from "@/components/auth/auth-form";
 import { Logo } from "@/components/ui/logo";
 import { PageContainer } from "@/components/layout/page-container";
 import { UserRole } from "@/lib/types";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
+import { signUp } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
 
 const VoterSignup = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const { user, userRole } = useAuth();
 
-  const handleSubmit = (data: Record<string, string>) => {
-    // In a real app, we'd integrate with an authentication service
-    console.log("Voter signup:", data);
+  // Redirect if already logged in as voter
+  useEffect(() => {
+    if (user && userRole === UserRole.VOTER) {
+      navigate("/voter/home");
+    }
+  }, [user, userRole, navigate]);
+
+  const handleSubmit = async (data: Record<string, string>) => {
+    setIsLoading(true);
     
-    // For demo purposes, always succeed
-    toast({
-      title: "Account Created",
-      description: "Your voter account has been created successfully!",
-    });
-    
-    // Navigate to voter login
-    navigate("/voter/login");
+    try {
+      if (!data.aadharNumber) {
+        throw new Error("Aadhar Number is required for voter registration");
+      }
+      
+      const { data: authData, error } = await signUp(
+        data.email, 
+        data.password, 
+        {
+          name: data.name,
+          contact: data.contact,
+          role: UserRole.VOTER,
+          aadharNumber: data.aadharNumber
+        }
+      );
+      
+      if (error) {
+        toast({
+          title: "Signup Failed",
+          description: error,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Account Created",
+        description: "Your voter account has been created successfully!",
+      });
+      
+      // Navigate to voter login
+      navigate("/voter/login");
+    } catch (error: any) {
+      toast({
+        title: "Signup Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -33,7 +77,8 @@ const VoterSignup = () => {
       <AuthForm 
         type="signup" 
         role={UserRole.VOTER} 
-        onSubmit={handleSubmit} 
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
       />
     </PageContainer>
   );

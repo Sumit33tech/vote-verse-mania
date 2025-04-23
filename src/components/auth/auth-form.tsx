@@ -6,14 +6,16 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserRole } from "@/lib/types";
 import { Link } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 export type AuthFormProps = {
   type: "login" | "signup";
   role: UserRole;
   onSubmit: (data: Record<string, string>) => void;
+  isLoading?: boolean;
 };
 
-export function AuthForm({ type, role, onSubmit }: AuthFormProps) {
+export function AuthForm({ type, role, onSubmit, isLoading = false }: AuthFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -55,6 +57,7 @@ export function AuthForm({ type, role, onSubmit }: AuthFormProps) {
                 onChange={handleChange}
                 required
                 placeholder="Enter your full name"
+                disabled={isLoading}
               />
             </div>
           )}
@@ -69,6 +72,7 @@ export function AuthForm({ type, role, onSubmit }: AuthFormProps) {
               onChange={handleChange}
               required
               placeholder="Enter your email"
+              disabled={isLoading}
             />
           </div>
 
@@ -83,6 +87,7 @@ export function AuthForm({ type, role, onSubmit }: AuthFormProps) {
                 onChange={handleChange}
                 required
                 placeholder="Enter your contact number"
+                disabled={isLoading}
               />
             </div>
           )}
@@ -97,6 +102,7 @@ export function AuthForm({ type, role, onSubmit }: AuthFormProps) {
                 onChange={handleChange}
                 required
                 placeholder="Enter your Aadhar number"
+                disabled={isLoading}
               />
             </div>
           )}
@@ -111,6 +117,7 @@ export function AuthForm({ type, role, onSubmit }: AuthFormProps) {
               onChange={handleChange}
               required
               placeholder={isSignup ? "Create a password" : "Enter your password"}
+              disabled={isLoading}
             />
           </div>
         </CardContent>
@@ -119,8 +126,16 @@ export function AuthForm({ type, role, onSubmit }: AuthFormProps) {
           <Button 
             type="submit" 
             className="w-full bg-votePurple hover:bg-votePurple-secondary"
+            disabled={isLoading}
           >
-            {isSignup ? "Sign Up" : "Login"}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isSignup ? "Signing Up..." : "Logging In..."}
+              </>
+            ) : (
+              isSignup ? "Sign Up" : "Login"
+            )}
           </Button>
           
           <div className="text-center text-sm">

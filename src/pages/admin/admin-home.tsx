@@ -1,56 +1,103 @@
 
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { useState } from "react";
 import { Search, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRequireAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/lib/types";
+import { toast } from "@/components/ui/use-toast";
 
-// Mock data
-const mockVotings = [
-  { 
-    id: "1", 
-    title: "Board Member Election", 
-    code: "BOARD123",
-    startDate: new Date(2023, 4, 15, 10, 0),
-    endDate: new Date(2023, 4, 15, 18, 0),
-  },
-  { 
-    id: "2", 
-    title: "Budget Approval", 
-    code: "BUDGET456",
-    startDate: new Date(2023, 4, 20, 9, 0),
-    endDate: new Date(2023, 4, 22, 17, 0),
-  },
-  { 
-    id: "3", 
-    title: "New Logo Selection", 
-    code: "LOGO789",
-    startDate: new Date(2023, 5, 1, 8, 0),
-    endDate: new Date(2023, 5, 5, 23, 59),
-  },
-];
+interface VotingSchedule {
+  id: string;
+  title: string;
+  code: string;
+  start_date: string;
+  end_date: string;
+  options: any[];
+}
 
 const AdminHome = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [votings, setVotings] = useState(mockVotings);
+  const [votings, setVotings] = useState<VotingSchedule[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Protect this route
+  const { user } = useRequireAuth(UserRole.ADMIN);
+
+  useEffect(() => {
+    const fetchVotings = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('voting_schedules')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
+        setVotings(data || []);
+      } catch (error: any) {
+        console.error("Error fetching votings:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load voting schedules",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVotings();
+  }, [user]);
 
   const filteredVotings = votings.filter(voting =>
     voting.title.toLowerCase().includes(search.toLowerCase()) ||
     voting.code.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleRemoveVoting = (id: string) => {
-    setVotings(votings.filter(voting => voting.id !== id));
+  const handleRemoveVoting = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('voting_schedules')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setVotings(votings.filter(voting => voting.id !== id));
+      
+      toast({
+        title: "Voting Removed",
+        description: "The voting schedule has been removed successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error removing voting:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove voting schedule",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditVoting = (id: string) => {
     navigate(`/admin/schedule/${id}`);
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -58,6 +105,16 @@ const AdminHome = () => {
       minute: '2-digit',
     });
   };
+
+  if (isLoading && !user) {
+    return (
+      <AdminLayout title="Scheduled Votings">
+        <div className="text-center py-10">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout title="Scheduled Votings">
@@ -83,7 +140,7 @@ const AdminHome = () => {
                   <h3 className="font-semibold text-lg">{voting.title}</h3>
                   <div className="flex justify-between items-center mt-2 text-sm text-gray-600">
                     <span>Code: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{voting.code}</span></span>
-                    <span>{formatDate(voting.startDate)} - {formatDate(voting.endDate)}</span>
+                    <span>{formatDate(voting.start_date)} - {formatDate(voting.end_date)}</span>
                   </div>
                 </div>
               </CardContent>
