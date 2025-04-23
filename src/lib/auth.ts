@@ -159,7 +159,16 @@ export const getUserProfile = async (): Promise<Profile | null> => {
       return null;
     }
     
-    return data;
+    // Convert the string role from database to UserRole enum
+    if (data) {
+      const profile: Profile = {
+        ...data,
+        role: data.role as UserRole // Cast the string role to UserRole enum
+      };
+      return profile;
+    }
+    
+    return null;
   } catch (error) {
     console.error("Error in getUserProfile:", error);
     return null;
