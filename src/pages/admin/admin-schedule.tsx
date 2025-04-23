@@ -108,8 +108,8 @@ const AdminSchedule = () => {
       // Generate a unique code for the voting
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       
-      // Convert options to a JSON-safe format that matches the database schema
-      const jsonOptions = formData.options as unknown as Json;
+      // Ensure the options are stored in the correct format by directly passing the array
+      // This will be automatically serialized as JSON by the Supabase client
       
       const { error } = await supabase
         .from('voting_schedules')
@@ -118,7 +118,7 @@ const AdminSchedule = () => {
           code: code,
           start_date: formData.startDate,
           end_date: formData.endDate,
-          options: jsonOptions,
+          options: formData.options as unknown as Json[],
           image_url: formData.imageUrl || null,
           created_by: user?.id
         });
