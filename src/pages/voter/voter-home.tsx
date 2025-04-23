@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { VoterLayout } from "@/components/layout/voter-layout";
 import { Input } from "@/components/ui/input";
@@ -7,14 +8,50 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useRequireAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/lib/types";
+import { Card, CardContent } from "@/components/ui/card";
 
 const VoterHome = () => {
   const navigate = useNavigate();
   const [votingCode, setVotingCode] = useState("");
   const [isChecking, setIsChecking] = useState(false);
+  const [activeVotings, setActiveVotings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // Protect this route
-  useRequireAuth(UserRole.VOTER);
+  const { user } = useRequireAuth(UserRole.VOTER);
+
+  // Fetch active votings when the component mounts
+  useState(() => {
+    const fetchActiveVotings = async () => {
+      if (!user) return;
+
+      try {
+        const now = new Date().toISOString();
+        
+        const { data, error } = await supabase
+          .from('voting_schedules')
+          .select('id, code, title, start_date, end_date')
+          .lte('start_date', now)
+          .gte('end_date', now)
+          .order('end_date', { ascending: true });
+          
+        if (error) throw error;
+        
+        setActiveVotings(data || []);
+      } catch (error: any) {
+        console.error("Error fetching active votings:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load active votings",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchActiveVotings();
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,9 +108,14 @@ const VoterHome = () => {
     }
   };
 
+  // Join a voting directly by clicking on an active voting card
+  const handleJoinVoting = (code: string) => {
+    navigate(`/voter/vote/${code}`);
+  };
+
   return (
     <VoterLayout title="Vote Mania">
-      <div className="flex flex-col items-center justify-center space-y-8 mt-12">
+      <div className="flex flex-col items-center justify-center space-y-8 mt-6">
         <div className="text-center max-w-md">
           <h2 className="text-2xl font-bold mb-4">Enter a Voting Code</h2>
           <p className="text-gray-600 mb-6">
@@ -100,9 +142,46 @@ const VoterHome = () => {
           </form>
         </div>
         
-        <div className="mt-12 text-center text-sm text-gray-500">
-          <p>Need help? Contact the voting administrator.</p>
-        </div>
+        {loading ? (
+          <div className="w-full max-w-2xl mt-8 text-center">
+            <p className="text-gray-500">Loading active votings...</p>
+          </div>
+        ) : activeVotings.length > 0 ? (
+          <div className="w-full max-w-2xl mt-8">
+            <h3 className="text-xl font-semibold mb-4">Active Votings</h3>
+            <div className="space-y-4">
+              {activeVotings.map((voting) => (
+                <Card 
+                  key={voting.id} 
+                  className="cursor-pointer hover:border-voteRed"
+                  onClick={() => handleJoinVoting(voting.code)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h4 className="font-medium">{voting.title}</h4>
+                        <p className="text-sm text-gray-500">
+                          Ends: {new Date(voting.end_date).toLocaleString()}
+                        </p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="bg-voteRed hover:bg-red-600"
+                      >
+                        Join Now
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="w-full max-w-2xl mt-8 text-center">
+            <p className="text-gray-500">No active votings are available at the moment.</p>
+            <p className="text-sm text-gray-400 mt-1">Check back later or enter a voting code above.</p>
+          </div>
+        )}
       </div>
     </VoterLayout>
   );

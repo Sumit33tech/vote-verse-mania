@@ -30,6 +30,7 @@ interface VotingWithResults extends VotingSchedule {
     text: string;
     votes: number;
   }>;
+  status: 'upcoming' | 'active' | 'completed';
 }
 
 interface VotingSchedule {
@@ -47,21 +48,19 @@ const AdminHistory = () => {
   const [votings, setVotings] = useState<VotingWithResults[]>([]);
   const [selectedVoting, setSelectedVoting] = useState<VotingWithResults | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>("all");
   
-  // Fetch completed votings
+  // Fetch all votings
   useEffect(() => {
     if (!user) return;
     
-    const fetchCompletedVotings = async () => {
+    const fetchAllVotings = async () => {
       try {
-        const now = new Date().toISOString();
-        
-        // Get all completed votings
+        // Get all votings without date filter
         const { data: votingsData, error: votingsError } = await supabase
           .from('voting_schedules')
           .select('*')
-          .lt('end_date', now)
-          .order('end_date', { ascending: false });
+          .order('start_date', { ascending: false });
           
         if (votingsError) throw votingsError;
         
@@ -71,7 +70,7 @@ const AdminHistory = () => {
           return;
         }
         
-        // For each voting, get the votes
+        // For each voting, get the votes and determine status
         const votingsWithResults = await Promise.all(
           votingsData.map(async (voting) => {
             // Get all votes for this voting
@@ -100,20 +99,35 @@ const AdminHistory = () => {
               votes: voteCounts[option.id] || 0
             }));
             
+            // Determine status
+            const now = new Date();
+            const startDate = new Date(voting.start_date);
+            const endDate = new Date(voting.end_date);
+            
+            let status: 'upcoming' | 'active' | 'completed';
+            if (now < startDate) {
+              status = 'upcoming';
+            } else if (now <= endDate) {
+              status = 'active';
+            } else {
+              status = 'completed';
+            }
+            
             return {
               ...voting,
               totalVotes,
-              results
+              results,
+              status
             };
           })
         );
         
         setVotings(votingsWithResults);
       } catch (error: any) {
-        console.error("Error fetching voting history:", error);
+        console.error("Error fetching voting data:", error);
         toast({
           title: "Error",
-          description: "Failed to load voting history",
+          description: "Failed to load voting data",
           variant: "destructive",
         });
       } finally {
@@ -121,7 +135,7 @@ const AdminHistory = () => {
       }
     };
     
-    fetchCompletedVotings();
+    fetchAllVotings();
   }, [user]);
   
   const formatDate = (dateString: string) => {
@@ -143,25 +157,31 @@ const AdminHistory = () => {
     );
   };
 
+  // Filter votings based on active tab
+  const filteredVotings = votings.filter(voting => {
+    if (activeTab === "all") return true;
+    return voting.status === activeTab;
+  });
+
   if (isLoading) {
     return (
-      <AdminLayout title="Voting History">
+      <AdminLayout title="Voting Dashboard">
         <div className="text-center py-10">
-          <p className="text-gray-500">Loading voting history...</p>
+          <p className="text-gray-500">Loading voting data...</p>
         </div>
       </AdminLayout>
     );
   }
 
   return (
-    <AdminLayout title="Voting History">
+    <AdminLayout title="Voting Dashboard">
       {selectedVoting ? (
         <div>
           <button
             onClick={() => setSelectedVoting(null)}
             className="mb-4 text-votePurple hover:underline flex items-center"
           >
-            ← Back to history
+            ← Back to dashboard
           </button>
           
           <div className="mb-6">
@@ -183,7 +203,9 @@ const AdminHistory = () => {
             
             <Card>
               <CardContent className="p-6">
-                <h3 className="text-lg font-medium mb-2">Winning Option</h3>
+                <h3 className="text-lg font-medium mb-2">
+                  {selectedVoting.status === 'completed' ? 'Winning Option' : 'Current Leader'}
+                </h3>
                 {selectedVoting.totalVotes > 0 ? (
                   <>
                     <p className="text-xl font-bold">{getWinningOption(selectedVoting)?.text}</p>
@@ -198,7 +220,12 @@ const AdminHistory = () => {
             <Card>
               <CardContent className="p-6">
                 <h3 className="text-lg font-medium mb-2">Status</h3>
-                <Badge className="text-lg py-1 px-3 bg-green-500">completed</Badge>
+                <Badge className={`text-lg py-1 px-3 ${
+                  selectedVoting.status === 'completed' ? 'bg-green-500' : 
+                  selectedVoting.status === 'active' ? 'bg-blue-500' : 'bg-amber-500'
+                }`}>
+                  {selectedVoting.status}
+                </Badge>
               </CardContent>
             </Card>
           </div>
@@ -212,7 +239,9 @@ const AdminHistory = () => {
             <TabsContent value="results">
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-medium mb-4">Results Breakdown</h3>
+                  <h3 className="text-lg font-medium mb-4">
+                    {selectedVoting.status === 'completed' ? 'Final Results' : 'Current Results'}
+                  </h3>
                   
                   {selectedVoting.totalVotes > 0 ? (
                     <div className="space-y-4">
@@ -291,12 +320,17 @@ const AdminHistory = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-gray-500 mb-6">
-            View results and statistics from past voting sessions
-          </p>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+            </TabsList>
+          </Tabs>
           
-          {votings.length > 0 ? (
-            votings.map(voting => (
+          {filteredVotings.length > 0 ? (
+            filteredVotings.map(voting => (
               <Card 
                 key={voting.id}
                 className="cursor-pointer hover:border-votePurple transition-colors"
@@ -309,16 +343,21 @@ const AdminHistory = () => {
                       <div className="flex flex-wrap gap-2 items-center text-sm text-gray-500 mt-1">
                         <span>Code: <span className="font-mono">{voting.code}</span></span>
                         <span>•</span>
-                        <span>{formatDate(voting.end_date)}</span>
+                        <span>{formatDate(voting.start_date)} - {formatDate(voting.end_date)}</span>
                       </div>
                     </div>
-                    <Badge className="bg-green-500">{voting.totalVotes} votes</Badge>
+                    <Badge className={`${
+                      voting.status === 'completed' ? 'bg-green-500' : 
+                      voting.status === 'active' ? 'bg-blue-500' : 'bg-amber-500'
+                    }`}>
+                      {voting.status}
+                    </Badge>
                   </div>
                   
                   <div className="mt-3 flex justify-between text-sm">
                     <span>
                       {voting.totalVotes > 0 
-                        ? `Winner: ${getWinningOption(voting)?.text}` 
+                        ? `${voting.totalVotes} votes` 
                         : "No votes recorded"}
                     </span>
                     <span className="text-votePurple">View Details →</span>
@@ -328,9 +367,15 @@ const AdminHistory = () => {
             ))
           ) : (
             <div className="text-center py-10 border rounded-md bg-gray-50">
-              <p className="text-gray-500">No completed votings found.</p>
+              <p className="text-gray-500">No {activeTab === "all" ? "" : activeTab} votings found.</p>
               <p className="mt-2 text-sm text-gray-400">
-                Completed votings will appear here after their end date has passed.
+                {activeTab === "completed" 
+                  ? "Completed votings will appear here after their end date has passed."
+                  : activeTab === "active"
+                  ? "Active votings will appear here when they start."
+                  : activeTab === "upcoming"
+                  ? "Upcoming votings will appear here when they are scheduled."
+                  : "Create a new voting to see it here."}
               </p>
             </div>
           )}
