@@ -33,14 +33,28 @@ const VoterVote = () => {
         const cleanCode = code.trim().toUpperCase();
         console.log("Fetching voting data for code:", cleanCode);
         
-        const { data: votingData, error: votingError } = await supabase
+        // First, try exact match
+        let { data: votingData, error: votingError } = await supabase
           .from('voting_schedules')
           .select('*')
-          .ilike('code', cleanCode) // Case-insensitive match
+          .eq('code', cleanCode) // Use exact match first
           .maybeSingle();
 
-        if (votingError && votingError.code !== 'PGRST116') {
-          console.error("Error fetching voting data:", votingError);
+        // If exact match fails, try case-insensitive match
+        if (!votingData && (!votingError || votingError.code === 'PGRST116')) {
+          console.log("No exact match found, trying case-insensitive match");
+          const { data: flexData, error: flexError } = await supabase
+            .from('voting_schedules')
+            .select('*')
+            .ilike('code', cleanCode) // Case-insensitive match as fallback
+            .maybeSingle();
+          
+          if (flexError && flexError.code !== 'PGRST116') {
+            throw flexError;
+          }
+          
+          votingData = flexData;
+        } else if (votingError && votingError.code !== 'PGRST116') {
           throw votingError;
         }
         

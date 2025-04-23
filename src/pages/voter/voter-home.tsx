@@ -74,11 +74,12 @@ const VoterHome = () => {
       console.log("Checking voting code:", cleanCode);
       
       // Check if the code exists and if the voting is active
+      // Instead of using ilike, directly compare with lowercase values for more flexibility
       const { data, error } = await supabase
         .from('voting_schedules')
         .select('id, title, start_date, end_date')
-        .ilike('code', cleanCode) // Case-insensitive match
-        .maybeSingle(); // Use maybeSingle instead of single for better error handling
+        .eq('code', cleanCode) // Use direct equality for exact matches
+        .maybeSingle();
       
       if (error && error.code !== 'PGRST116') {
         console.error("Error checking voting code:", error);
@@ -86,8 +87,20 @@ const VoterHome = () => {
       }
       
       if (!data) {
-        console.log("No voting found with code:", cleanCode);
-        throw new Error("No voting found with that code. Please check and try again.");
+        // Try a second more flexible search if the exact match failed
+        const { data: flexData, error: flexError } = await supabase
+          .from('voting_schedules')
+          .select('id, title, start_date, end_date')
+          .ilike('code', cleanCode) // Case-insensitive match as fallback
+          .maybeSingle();
+          
+        if (flexError || !flexData) {
+          console.log("No voting found with code (using flexible matching):", cleanCode);
+          throw new Error("No voting found with that code. Please check and try again.");
+        }
+        
+        // Use the data from the flexible search
+        data = flexData;
       }
       
       console.log("Voting found:", data);
