@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { Input } from "@/components/ui/input";
@@ -21,33 +22,33 @@ const AdminHome = () => {
   // Protect this route
   const { user } = useRequireAuth(UserRole.ADMIN);
 
-  useEffect(() => {
-    const fetchVotings = async () => {
-      if (!user) return;
+  const fetchVotings = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('voting_schedules')
+        .select('*')
+        .order('created_at', { ascending: false });
       
-      try {
-        const { data, error } = await supabase
-          .from('voting_schedules')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (error) {
-          throw error;
-        }
-        
-        setVotings(data || []);
-      } catch (error: any) {
-        console.error("Error fetching votings:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load voting schedules",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
+      if (error) {
+        throw error;
       }
-    };
+      
+      setVotings(data || []);
+    } catch (error: any) {
+      console.error("Error fetching votings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load voting schedules",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchVotings();
   }, [user]);
 

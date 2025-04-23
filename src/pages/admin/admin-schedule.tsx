@@ -8,6 +8,8 @@ import { PlusCircle, Trash2, Image } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { v4 as uuidv4 } from "uuid";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface VotingOption {
   id: string;
@@ -17,6 +19,7 @@ interface VotingOption {
 
 const AdminSchedule = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const [formData, setFormData] = useState({
     title: "",
@@ -65,7 +68,7 @@ const AdminSchedule = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
@@ -99,15 +102,38 @@ const AdminSchedule = () => {
       return;
     }
 
-    // In a real app, we'd save this to a database
-    console.log("Schedule voting:", formData);
+    try {
+      // Generate a unique code for the voting
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      const { error } = await supabase
+        .from('voting_schedules')
+        .insert({
+          title: formData.title,
+          code: code,
+          start_date: formData.startDate,
+          end_date: formData.endDate,
+          options: formData.options,
+          image_url: formData.imageUrl,
+          created_by: user?.id
+        });
 
-    toast({
-      title: "Voting Scheduled",
-      description: "Your voting has been scheduled successfully!",
-    });
+      if (error) throw error;
 
-    navigate("/admin/home");
+      toast({
+        title: "Voting Scheduled",
+        description: "Your voting has been scheduled successfully!",
+      });
+
+      // Navigate to admin home with replace: true to prevent going back
+      navigate("/admin/home", { replace: true });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to schedule voting",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
